@@ -159,7 +159,8 @@ def nibabel_image_to_info(img,
     return formatted_info, json_transform, input_dtype, imperfect_dtype
 
 
-def volume_to_precomputed(pyramid_writer, volume, chunk_transformer=None):
+def volume_to_precomputed(pyramid_writer, volume, start_idx=None, end_idx=None,
+                          chunk_transformer=None):
     info = pyramid_writer.info
     assert len(info["scales"][0]["chunk_sizes"]) == 1  # more not implemented
     chunk_size = info["scales"][0]["chunk_sizes"][0]  # in order x, y, z
@@ -167,27 +168,35 @@ def volume_to_precomputed(pyramid_writer, volume, chunk_transformer=None):
     dtype = np.dtype(info["data_type"]).newbyteorder("<")
     num_channels = info["num_channels"]
 
+    if end_idx is not None:
+        assert all(
+            e_idx <= (size_idx - 1) for size_idx, e_idx in zip(size, end_idx)
+        ), f"Every entry in end_idx {end_idx} to be <= to size {size}"
+
+    start = [0, 0, 0] if start_idx is None else start_idx
+    end = [(s - 1) for s in size] if end_idx is None else end_idx
+
     # Volumes given by nibabel are using Fortran indexing (X, Y, Z, T)
     assert volume.shape[:3] == tuple(size)
     if len(volume.shape) > 3:
         assert volume.shape[3] == num_channels
 
     progress_bar = tqdm(
-        total=(((size[0] - 1) // chunk_size[0] + 1)
-               * ((size[1] - 1) // chunk_size[1] + 1)
-               * ((size[2] - 1) // chunk_size[2] + 1)),
+        total=((end[0] // chunk_size[0] + 1)
+               * (end[1] // chunk_size[1] + 1)
+               * (end[2] // chunk_size[2] + 1)),
         desc="writing", unit="chunks", leave=True)
-    for z_chunk_idx in range((size[2] - 1) // chunk_size[2] + 1):
+    for z_chunk_idx in range(start[2], end[2] // chunk_size[2] + 1):
         z_slicing = np.s_[
             chunk_size[2] * z_chunk_idx
             : min(chunk_size[2] * (z_chunk_idx + 1), size[2])
         ]
-        for y_chunk_idx in range((size[1] - 1) // chunk_size[1] + 1):
+        for y_chunk_idx in range(start[1], end[1] // chunk_size[1] + 1):
             y_slicing = np.s_[
                 chunk_size[1] * y_chunk_idx
                 : min(chunk_size[1] * (y_chunk_idx + 1), size[1])
             ]
-            for x_chunk_idx in range((size[0] - 1) // chunk_size[0] + 1):
+            for x_chunk_idx in range(start[0], end[0] // chunk_size[0] + 1):
                 x_slicing = np.s_[
                     chunk_size[0] * x_chunk_idx
                     : min(chunk_size[0] * (x_chunk_idx + 1), size[0])
@@ -223,6 +232,8 @@ def nibabel_image_to_precomputed(img,
                                  input_min=None,
                                  input_max=None,
                                  load_full_volume=True,
+                                 start_idx=None,
+                                 end_idx=None,
                                  options={}):
     shape = img.header.get_data_shape()
 
@@ -292,6 +303,7 @@ def nibabel_image_to_precomputed(img,
         volume = proxy
     logger.info("Writing chunks... ")
     volume_to_precomputed(precomputed_writer, volume,
+                          start_idx=start_idx, end_idx=end_idx,
                           chunk_transformer=chunk_transformer)
 
 
@@ -301,6 +313,8 @@ def volume_file_to_precomputed(volume_filename,
                                input_min=None,
                                input_max=None,
                                load_full_volume=True,
+                               start_idx=None,
+                               end_idx=None,
                                options={}):
     img = nibabel.load(volume_filename)
     dtype, is_rgb = neuroglancer_scripts.data_types.get_dtype_from_vol(
@@ -334,7 +348,8 @@ def volume_file_to_precomputed(volume_filename,
         return 1
     return nibabel_image_to_precomputed(img, precomputed_writer,
                                         ignore_scaling, input_min, input_max,
-                                        load_full_volume, options)
+                                        load_full_volume, start_idx, end_idx,
+                                        options)
 
 
 def volume_file_to_info(volume_filename, dest_url,

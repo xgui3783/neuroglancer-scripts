@@ -47,6 +47,14 @@ omitted, it is assumed to be zero.
                        "is too large to fit memory, but it will slow down "
                        "the conversion significantly.")
 
+    group.add_argument("--start-idx", dest="start_idx", default=None,
+                       help="comma separated int. Start of ROI.")
+
+    group.add_argument("--end-idx", dest="end_idx", default=None,
+                       help="comma separated int. End of ROI."
+                       "Every element must be >= corresp entry start-idx"
+                       "Every element must be <= corresp size of volume -1")
+
     # TODO split into a module
     group = parser.add_argument_group(
         "Options for data type conversion and scaling")
@@ -66,7 +74,25 @@ omitted, it is assumed to be zero.
     if args.input_max is None and args.input_min is not None:
         parser.error("--input-min cannot be specified if --input-max is "
                      "omitted")
+    if (args.end_idx is None) != (args.start_idx is None):
+        parser.error("--start-idx --end-id must be both defined or unset.")
 
+    if args.end_idx is not None:
+        try:
+            start_idx = [int(entry) for entry in args.start_idx.split(',')]
+            end_idx = [int(entry) for entry in args.end_idx.split(',')]
+            assert len(start_idx) == 3, "start_idx should have length 3"
+            assert len(end_idx) == 3, "end_idx should have length 3"
+            assert all(
+                end >= start
+                for start, end in zip(start_idx, end_idx)
+            ), f"Expecting end_entry {end_idx} >= start_entry {start_idx}"
+            args.start_idx = start_idx
+            args.end_idx = end_idx
+        except AssertionError as e:
+            parser.error(f"Parsing start_idx/end_idx error: {str(e)}")
+        except ValueError as e:
+            parser.error(f"Parsing start_idx/end_idx as int error: {str(e)}")
     return args
 
 
@@ -92,6 +118,8 @@ def main(argv=sys.argv):
             input_min=args.input_min,
             input_max=args.input_max,
             load_full_volume=args.load_full_volume,
+            start_idx=args.start_idx,
+            end_idx=args.end_idx,
             options=vars(args)
         ) or 0
 
