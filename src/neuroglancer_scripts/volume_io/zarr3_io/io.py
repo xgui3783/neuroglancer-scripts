@@ -49,6 +49,8 @@ class ZarrV3IO(MultiResIOBase):
 
             for scale in io.info.get("scales", []):
                 key = scale.get("key")
+                if key != "320um":
+                    continue
                 print("processing", key)
 
                 size = scale.get('size')
@@ -89,7 +91,7 @@ class ZarrV3IO(MultiResIOBase):
                     for x_chunk_idx in range((size[0] - 1) // chunk_size[0] + 1)
                 ]
 
-                with ThreadPoolExecutor() as ex:
+                with ThreadPoolExecutor(max_workers=1) as ex:
                     list(
                         tqdm(
                             ex.map(

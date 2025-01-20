@@ -292,19 +292,22 @@ def from_precomputed_info(info):
 
     for scale in scales:
         shape = scale.get("size")
-        chunk_shape = scale.get("chunk_sizes")[0]
+        chunk_size = scale.get("chunk_sizes")[0]
 
-        assert len(shape) == len(chunk_shape) == 3
+        assert len(shape) == len(chunk_size) == 3
 
         # do not exceed 4 chunks in each dimension
         # which leads to max 64 files per scale
 
-        chunk_merge: List[int] = [math.ceil(s / cs / 4) for s, cs in zip(shape, chunk_shape)]
+        chunk_merge: List[int] = [math.ceil(s / cs / 4) for s, cs in zip(shape, chunk_size)]
+        chunk_shape = [cs * chm for cs, chm in zip(chunk_size, chunk_merge)]
+
+        rounded_shape = [math.ceil(s / cs) * cs for s, cs in zip(shape, chunk_shape)]
         array_metadata = Zarr3ArrayMetadata(
-            shape=shape,
+            shape=rounded_shape,
             data_type=data_type,
             chunk_grid=ChunkGrid(name="regular", configuration={
-                "chunk_shape": [cs * chm for cs, chm in zip(chunk_shape, chunk_merge)]
+                "chunk_shape": chunk_shape
             }),
             chunk_key_encoding=DefaultChunkKeyEncoding(configuration={
                 "separator": "/"
@@ -314,7 +317,7 @@ def from_precomputed_info(info):
             codecs=[
                 ShardingCodec(
                     configuration=ShardingCodecCfg(
-                        chunk_shape=chunk_shape,
+                        chunk_shape=chunk_size,
                         codecs=[
                             BytesCodec(
                                 configuration=ByteCodecCfg(endian="little")

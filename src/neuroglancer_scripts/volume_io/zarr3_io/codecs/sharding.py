@@ -89,16 +89,15 @@ class ShardingCodec(Codec[ndarray, bytes]):
             for cc, cg in zip(
                 [xmin, ymin, zmin],
                 metadata.chunk_grid.configuration["chunk_shape"])]
+        
+        relative_grid_idx = [ rcc / cs
+                             for rcc, cs in zip(
+                                 relative_chunk_coord,
+                                 self.configuration.chunk_shape)]
         return int(
-            sum(
-                [
-                    chunk_coord / cs * axis_offset for chunk_coord, cs, axis_offset in zip(
-                        relative_chunk_coord,
-                        self.configuration.chunk_shape,
-                        [subchunk_dim[0] * subchunk_dim[1] * 16, subchunk_dim[0] * 16, 0]
-                    )
-                ]
-            )
+            relative_grid_idx[2] * 16 +
+            relative_grid_idx[1] * subchunk_dim[2] * 16 +
+            relative_grid_idx[0] * subchunk_dim[2] * subchunk_dim[1] * 16
         )
 
     @classmethod
@@ -124,6 +123,10 @@ class ShardingCodec(Codec[ndarray, bytes]):
         chunkcoord_hdroffset = self.get_chunk_coord_header_offset(chunk_coords, metadata)
 
         relative_path = pathlib.Path(path)
+        foo = [int(v / y) for v, y in zip([xmin, ymin, zmin], self.configuration.chunk_shape)]
+        print("foo", chunkcoord_hdroffset, foo, foo == [1, 0, 0])
+        if foo == [1, 0, 0]:
+            assert chunkcoord_hdroffset > 0
         file_path = accessor.base_path / relative_path
         file_path.parent.mkdir(exist_ok=True, parents=True)
 
