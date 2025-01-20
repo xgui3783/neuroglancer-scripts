@@ -347,6 +347,7 @@ class BloscEncoder(ChunkEncoder, type="blosc"):
         self.blosc_clevel = blosc_clevel
         self.blosc_shuffle = blosc_shuffle
         self.blosc_cname = blosc_cname
+        print("blosc", self.num_channels)
 
     def encode(self, chunk):
         from numcodecs import blosc

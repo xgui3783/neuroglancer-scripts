@@ -172,7 +172,8 @@ class Accessor:
 
     def store_file(self, relative_path, buf,
                    mime_type="application/octet-stream",
-                   overwrite=False):
+                   overwrite=False,
+                   offset=0):
         """Store a file relative to the precomputed pyramid's base directory.
 
         :param str relative_path: path to the file relative to the base
@@ -180,6 +181,7 @@ class Accessor:
         :param bytes buf: the contents of the file to be stored
         :param str mime_type: MIME type of the file
         :param bool overwrite: whether to allow overwriting an existing file
+        :param int offset: store the file at a specific offset. Will open the file in r+b mode.
         :raises DataAccessError: if the *info* file cannot be retrieved
         :raises NotImplementedError: if :attr:`can_write` is False
         """

@@ -89,13 +89,17 @@ class FileAccessor(neuroglancer_scripts.accessor.Accessor):
 
     def store_file(self, relative_path, buf,
                    mime_type="application/octet-stream",
-                   overwrite=False):
+                   overwrite=False,
+                   offset=0):
         relative_path = pathlib.Path(relative_path)
         file_path = self.base_path / relative_path
         if ".." in file_path.relative_to(self.base_path).parts:
             raise ValueError("only relative paths pointing under base_path "
                              "are accepted")
         mode = "wb" if overwrite else "xb"
+        if offset > 0:
+            assert not self.gzip
+            mode = "r+b"
         try:
             os.makedirs(str(file_path.parent), exist_ok=True)
             if self.gzip and mime_type not in NO_COMPRESS_MIME_TYPES:
@@ -105,6 +109,8 @@ class FileAccessor(neuroglancer_scripts.accessor.Accessor):
                     f.write(buf)
             else:
                 with file_path.open(mode) as f:
+                    if offset > 0:
+                        f.seek(offset)
                     f.write(buf)
         except OSError as exc:
             raise DataAccessError(f"Error storing {file_path}: {exc}"
