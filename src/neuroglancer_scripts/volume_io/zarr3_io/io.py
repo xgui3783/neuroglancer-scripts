@@ -91,7 +91,7 @@ class ZarrV3IO(MultiResIOBase):
                     for x_chunk_idx in range((size[0] - 1) // chunk_size[0] + 1)
                 ]
 
-                with ThreadPoolExecutor(max_workers=1) as ex:
+                with ThreadPoolExecutor() as ex:
                     list(
                         tqdm(
                             ex.map(
