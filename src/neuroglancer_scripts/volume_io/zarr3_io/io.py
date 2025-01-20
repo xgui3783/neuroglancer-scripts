@@ -49,8 +49,6 @@ class ZarrV3IO(MultiResIOBase):
 
             for scale in io.info.get("scales", []):
                 key = scale.get("key")
-                if key != "320um":
-                    continue
                 print("processing", key)
 
                 size = scale.get('size')
