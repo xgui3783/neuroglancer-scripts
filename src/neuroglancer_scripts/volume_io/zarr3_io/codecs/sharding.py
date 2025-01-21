@@ -128,7 +128,7 @@ class ShardingCodec(Codec[ndarray, bytes]):
         file_path = accessor.base_path / relative_path
         file_path.parent.mkdir(exist_ok=True, parents=True)
 
-        with FileLock(file_path / ".lock"):
+        with FileLock(file_path.with_name(file_path.name + ".lock")):
             if not file_path.exists():
                 file_path.write_bytes(b"\0" * self.get_header_size(metadata))
 
