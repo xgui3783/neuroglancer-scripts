@@ -3,6 +3,7 @@ import pathlib
 import struct
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List
+from filelock import FileLock
 
 from numpy import ndarray
 
@@ -127,24 +128,24 @@ class ShardingCodec(Codec[ndarray, bytes]):
         file_path = accessor.base_path / relative_path
         file_path.parent.mkdir(exist_ok=True, parents=True)
 
-        if not file_path.exists():
-            file_path.write_bytes(b"\0" * self.get_header_size(metadata))
+        with FileLock(file_path / ".lock"):
+            if not file_path.exists():
+                file_path.write_bytes(b"\0" * self.get_header_size(metadata))
 
-        output = input
-        for codec in self.configuration.codecs:
-            output = codec.encode(output, metadata, io, path=path, chunk_coords=chunk_coords)
+            output = input
+            for codec in self.configuration.codecs:
+                output = codec.encode(output, metadata, io, path=path, chunk_coords=chunk_coords)
 
-        with file_path.open("r+b") as f:
+            with file_path.open("r+b") as f:
 
+                nbytes = len(output)
+                offset = f.seek(0, 2)
 
-            nbytes = len(output)
-            offset = f.seek(0, 2)
+                hdr_metadata = struct.pack("<QQ", offset, nbytes)
+                f.write(output)
 
-            hdr_metadata = struct.pack("<QQ", offset, nbytes)
-            f.write(output)
-
-            f.seek(chunkcoord_hdroffset)
-            f.write(hdr_metadata)
+                f.seek(chunkcoord_hdroffset)
+                f.write(hdr_metadata)
 
         raise TermCodecException("ShardCodec writes to io directly")
 
