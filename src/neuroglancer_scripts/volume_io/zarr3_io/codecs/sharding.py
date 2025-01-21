@@ -124,8 +124,6 @@ class ShardingCodec(Codec[ndarray, bytes]):
 
         relative_path = pathlib.Path(path)
         foo = [int(v / y) for v, y in zip([xmin, ymin, zmin], self.configuration.chunk_shape)]
-        if foo == [1, 0, 0]:
-            assert chunkcoord_hdroffset > 0
         file_path = accessor.base_path / relative_path
         file_path.parent.mkdir(exist_ok=True, parents=True)
 
