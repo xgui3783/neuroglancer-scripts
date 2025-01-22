@@ -1,7 +1,7 @@
 import json
 import math
 from abc import ABC
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import ClassVar, Dict, List, Type, Union
 
 from neuroglancer_scripts.volume_io.zarr3_io.codecs import (
@@ -198,11 +198,10 @@ class Zarr3GroupAttrOmeScale:
     axes: List[Zarr3GroupAttrOmeAxis]
     datasets: List[Zarr3GroupAttrOmeDataset]
 
-    coordinateTransformations: List[Zarr3GroupAttrOmeXform] = None
-    name: str = None
-    type: str = None
-    metadata: Dict = None
-    metadata: Dict = None
+    coordinateTransformations: List[Zarr3GroupAttrOmeXform] = field(default_factory=lambda: [{"type": "identity"}])
+    name: str = "multiresolution"
+    type: str = "unknown"
+    metadata: Dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.axes = [

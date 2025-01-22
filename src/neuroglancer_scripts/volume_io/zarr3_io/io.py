@@ -70,7 +70,13 @@ class ZarrV3IO(MultiResIOBase):
                     chunk = np.transpose(chunk)
                     chunk = np.squeeze(chunk)
 
-                    chunk = np.pad(chunk, (
+                    # currently does not work for chunk volumes that are "non conventionally thin"
+                    while len(chunk.shape) < 3:
+                        chunk = np.expand_dims(chunk, -1)
+
+                    assert len(chunk.shape) == 3
+
+                    chunk = np.pad(chunk, ( 
                         (0, chunk_size[0] - chunk.shape[0]),
                         (0, chunk_size[1] - chunk.shape[1]),
                         (0, chunk_size[2] - chunk.shape[2]),
