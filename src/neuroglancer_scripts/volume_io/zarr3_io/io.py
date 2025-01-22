@@ -69,7 +69,7 @@ class ZarrV3IO(MultiResIOBase):
                     ))
                     chunk = np.transpose(chunk)
 
-                    if len(chunk.shape) > 4:
+                    if len(chunk.shape) > 3:
                         chunk = chunk.reshape(chunk.shape[:3])
 
                     chunk = np.pad(chunk, ( 

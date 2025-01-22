@@ -52,7 +52,7 @@ class BytesCodec(Codec[np.ndarray, bytes]):
         itemsize = input.dtype.itemsize
         if itemsize == 1:
             return input.tobytes("C")
-        if not self.configuration.byteorder_equal(input):
+        if not self.configuration.byteorder_equal(input.dtype):
             input = np.ascontiguousarray(
                 input, dtype=input.dtype.newbyteorder("S")
             )
