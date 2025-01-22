@@ -198,7 +198,7 @@ class Zarr3GroupAttrOmeScale:
     axes: List[Zarr3GroupAttrOmeAxis]
     datasets: List[Zarr3GroupAttrOmeDataset]
 
-    coordinateTransformations: List[Zarr3GroupAttrOmeXform] = field(default_factory=lambda: [{"type": "identity"}])
+    coordinateTransformations: List[Zarr3GroupAttrOmeXform] = field(default_factory=lambda: [Zarr3GroupAttrOmeXformId()])
     name: str = "multiresolution"
     type: str = "unknown"
     metadata: Dict = field(default_factory=dict)
@@ -217,6 +217,8 @@ class Zarr3GroupAttrOmeScale:
             self.coordinateTransformations = []
         self.coordinateTransformations = [
             Zarr3GroupAttrOmeXform(**xform)
+            if isinstance(xform, dict)
+            else xform
             for xform in self.coordinateTransformations]
 
 
