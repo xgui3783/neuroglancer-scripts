@@ -7,7 +7,7 @@ import numpy as np
 from neuroglancer_scripts.volume_io.zarr3_io.codecs.base import Codec
 
 if TYPE_CHECKING:
-    from neuroglancer_scripts.volume_io.zarr3_io.io import ZarrV3IO
+    from neuroglancer_scripts.volume_io.zarr3_io.dataio import ZarrV3IO
     from neuroglancer_scripts.volume_io.zarr3_io.metadata import (
         Zarr3ArrayMetadata,
     )
@@ -48,7 +48,8 @@ class BytesCodec(Codec[np.ndarray, bytes]):
     def parse(cls, obj):
         return cls(configuration=ByteCodecCfg.parse(obj.get("configuration")))
 
-    def encode(self, input, metadata: "Zarr3ArrayMetadata", io: "ZarrV3IO", *args, **kwargs):
+    def encode(self, input, metadata: "Zarr3ArrayMetadata", io: "ZarrV3IO",
+               *args, **kwargs):
         itemsize = input.dtype.itemsize
         if itemsize == 1:
             return input.tobytes("C")
@@ -58,7 +59,8 @@ class BytesCodec(Codec[np.ndarray, bytes]):
             )
         return input.tobytes("C")
 
-    def decode(self, output, metadata: "Zarr3ArrayMetadata", io: "ZarrV3IO", *args, **kwargs):
+    def decode(self, output, metadata: "Zarr3ArrayMetadata", io: "ZarrV3IO",
+               *args, **kwargs):
         dtype = np.dtype(metadata.data_type)
         if not self.configuration.byteorder_equal(dtype):
             dtype = dtype.newbyteorder("S")

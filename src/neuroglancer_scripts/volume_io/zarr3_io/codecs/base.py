@@ -2,11 +2,11 @@ from abc import ABC
 from typing import TYPE_CHECKING, Any, Dict, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from ..io import ZarrV3IO
+    from ..dataio import ZarrV3IO
     from ..metadata import Zarr3ArrayMetadata
 
-I = TypeVar("I")
-O = TypeVar("O")
+I = TypeVar("I") # noqa: E741
+O = TypeVar("O") # noqa: E741
 
 
 class Codec(Generic[I, O], ABC):
@@ -32,15 +32,21 @@ class Codec(Generic[I, O], ABC):
 
         return cls._codec_registry[name].parse(obj)
 
-    # some array -> byte codec may need additional info (e.g. grid coord/ chunk coord of the current array being written)
-    def encode(self, input, metadata: "Zarr3ArrayMetadata", io: "ZarrV3IO", *args, **kwargs):
+    # some array -> byte codec may need additional info
+    # (e.g. grid coord/ chunk coord of the current array being written)
+    def encode(self, input, metadata: "Zarr3ArrayMetadata", io: "ZarrV3IO",
+               *args, **kwargs):
         raise NotImplementedError
 
-    def decode(self, output, metadata: "Zarr3ArrayMetadata", io: "ZarrV3IO", *args, **kwargs):
+    def decode(self, output, metadata: "Zarr3ArrayMetadata", io: "ZarrV3IO",
+               *args, **kwargs):
         raise NotImplementedError
 
-class CodecException(Exception): pass
+class CodecError(Exception):
+    pass
 
-class InvalidCfgCodecException(Exception): pass
+class InvalidCfgCodecError(Exception):
+    pass
 
-class TermCodecException(CodecException): pass
+class TermCodecError(CodecError):
+    pass

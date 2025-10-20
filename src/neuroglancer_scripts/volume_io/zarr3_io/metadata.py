@@ -1,4 +1,5 @@
 import json
+import math
 from abc import ABC
 from dataclasses import asdict, dataclass, field
 from typing import ClassVar, Dict, List, Type, Union
@@ -304,7 +305,11 @@ def from_precomputed_info(info):
         assert len(shape) == len(chunk_size) == 3
 
         # always use a single shard
-        chunk_shape = shape
+        # but use an integer multiple of chunk_size
+        chunk_shape = [
+            math.ceil(sz / cs) * cs
+            for cs, sz in zip(chunk_size, shape)
+        ]
 
         array_metadata = Zarr3ArrayMetadata(
             shape=shape,
