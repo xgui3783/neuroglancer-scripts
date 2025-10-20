@@ -8,7 +8,7 @@ from tqdm import tqdm
 from neuroglancer_scripts.accessor import Accessor
 from neuroglancer_scripts.precomputed_io import PrecomputedIO
 from neuroglancer_scripts.volume_io.base_io import MultiResIOBase
-from neuroglancer_scripts.volume_io.zarr3_io.codecs import TermCodecException
+from neuroglancer_scripts.volume_io.zarr3_io.codecs import TermCodecError
 from neuroglancer_scripts.volume_io.zarr3_io.metadata import (
     Zarr3ArrayMetadata,
     Zarr3GroupMetadata,
@@ -119,7 +119,7 @@ class ZarrV3IO(MultiResIOBase):
 
             assert isinstance(chunk, bytes)
             self.accessor.store_file(path, chunk)
-        except TermCodecException:
+        except TermCodecError:
             pass
 
     def read_chunk(self, scale_key, chunk_coords):

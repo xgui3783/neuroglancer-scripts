@@ -9,7 +9,7 @@ from numpy import ndarray
 
 from neuroglancer_scripts.file_accessor import FileAccessor
 
-from .base import Codec, TermCodecException
+from .base import Codec, TermCodecError
 
 if TYPE_CHECKING:
     from ..metadata import Zarr3ArrayMetadata
@@ -155,7 +155,7 @@ class ShardingCodec(Codec[ndarray, bytes]):
                 f.seek(chunkcoord_hdroffset)
                 f.write(hdr_metadata)
 
-        raise TermCodecException("ShardCodec writes to io directly")
+        raise TermCodecError("ShardCodec writes to io directly")
 
 
     def decode(self, output, metadata, io, *args, **kwargs):
