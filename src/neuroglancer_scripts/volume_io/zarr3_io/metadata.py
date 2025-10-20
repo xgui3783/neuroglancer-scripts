@@ -1,5 +1,4 @@
 import json
-import math
 from abc import ABC
 from dataclasses import asdict, dataclass, field
 from typing import ClassVar, Dict, List, Type, Union
@@ -94,8 +93,8 @@ class Zarr3ArrayMetadata:
     def format_path(self, chunk_coords):
         xmin, xmax, ymin, ymax, zmin, zmax = chunk_coords
         gridx, gridy, gridz = self.chunk_grid.configuration["chunk_shape"]
-        separator = self.chunk_key_encoding.configuration["separator"]
-        return f"c{separator}{xmin // gridx}{separator}{ymin // gridy}{separator}{zmin // gridz}"
+        s = self.chunk_key_encoding.configuration["separator"]
+        return f"c{s}{xmin // gridx}{s}{ymin // gridy}{s}{zmin // gridz}"
 
     def __post_init__(self):
 
@@ -108,7 +107,8 @@ class Zarr3ArrayMetadata:
             self.chunk_grid = ChunkGrid(**self.chunk_grid)
 
         if isinstance(self.chunk_key_encoding, dict):
-            self.chunk_key_encoding = DefaultChunkKeyEncoding(**self.chunk_key_encoding)
+            self.chunk_key_encoding = DefaultChunkKeyEncoding(
+                **self.chunk_key_encoding)
 
         assert isinstance(self.fill_value, (int, float))
 
@@ -163,7 +163,7 @@ class Zarr3GroupAttrOmeXformScale(Zarr3GroupAttrOmeXform):
 @dataclass
 class Zarr3GroupAttrOmeDataset:
     path: str
-    coordinateTransformations: List[Zarr3GroupAttrOmeXform]
+    coordinateTransformations: List[Zarr3GroupAttrOmeXform] # noqa: N815
 
     def validate(self):
 
@@ -197,19 +197,22 @@ class Zarr3GroupAttrOmeDataset:
 class Zarr3GroupAttrOmeScale:
     axes: List[Zarr3GroupAttrOmeAxis]
     datasets: List[Zarr3GroupAttrOmeDataset]
-
-    coordinateTransformations: List[Zarr3GroupAttrOmeXform] = None
+    coordinateTransformations: List[Zarr3GroupAttrOmeXform] = None # noqa: N815
     name: str = "multiresolution"
     type: str = "unknown"
     metadata: Dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.axes = [
-            axis if isinstance(axis, Zarr3GroupAttrOmeAxis) else Zarr3GroupAttrOmeAxis(**axis)
+            axis
+            if isinstance(axis, Zarr3GroupAttrOmeAxis)
+            else Zarr3GroupAttrOmeAxis(**axis)
             for axis in self.axes]
 
         self.datasets = [
-            ds if isinstance(ds, Zarr3GroupAttrOmeDataset) else Zarr3GroupAttrOmeDataset(**ds)
+            ds
+            if isinstance(ds, Zarr3GroupAttrOmeDataset)
+            else Zarr3GroupAttrOmeDataset(**ds)
             for ds in self.datasets
         ]
 
@@ -229,7 +232,9 @@ class Zarr3GroupAttrOme:
 
     def __post_init__(self):
         self.multiscales = [
-            s if isinstance(s, Zarr3GroupAttrOmeScale) else Zarr3GroupAttrOmeScale(**s)
+            s
+            if isinstance(s, Zarr3GroupAttrOmeScale)
+            else Zarr3GroupAttrOmeScale(**s)
             for s in self.multiscales]
 
 
@@ -245,8 +250,8 @@ class Zarr3GroupMetadata:
             and "ome" in self.attributes
             and not isinstance(self.attributes["ome"], Zarr3GroupAttrOme)
         ):
-
-            self.attributes["ome"] = Zarr3GroupAttrOme(**self.attributes["ome"])
+            self.attributes["ome"] = Zarr3GroupAttrOme(
+                **self.attributes["ome"])
 
 
 def from_precomputed_info(info):
@@ -263,17 +268,18 @@ def from_precomputed_info(info):
 
     scale0 = scales[0]
     assert isinstance(scale0, dict)
-    resolution = scale0.get("resolution")
-    size = scale0.get("size")
 
     group_metadata = Zarr3GroupMetadata(attributes={
         "ome": Zarr3GroupAttrOme(
             multiscales=[
                 Zarr3GroupAttrOmeScale(
                     axes=[
-                        Zarr3GroupAttrOmeAxis(name="x", type="space", unit="nanometer"),
-                        Zarr3GroupAttrOmeAxis(name="y", type="space", unit="nanometer"),
-                        Zarr3GroupAttrOmeAxis(name="z", type="space", unit="nanometer"),
+                        Zarr3GroupAttrOmeAxis(name="x", type="space",
+                                              unit="nanometer"),
+                        Zarr3GroupAttrOmeAxis(name="y", type="space",
+                                              unit="nanometer"),
+                        Zarr3GroupAttrOmeAxis(name="z", type="space",
+                                              unit="nanometer"),
                     ],
                     datasets=[
                         Zarr3GroupAttrOmeDataset(
@@ -297,15 +303,11 @@ def from_precomputed_info(info):
 
         assert len(shape) == len(chunk_size) == 3
 
-        # do not exceed 4 chunks in each dimension
-        # which leads to max 64 files per scale
+        # always use a single shard
+        chunk_shape = shape
 
-        chunk_merge: List[int] = [math.ceil(s / cs / 4) for s, cs in zip(shape, chunk_size)]
-        chunk_shape = [cs * chm for cs, chm in zip(chunk_size, chunk_merge)]
-
-        rounded_shape = [math.ceil(s / cs) * cs for s, cs in zip(shape, chunk_shape)]
         array_metadata = Zarr3ArrayMetadata(
-            shape=rounded_shape,
+            shape=shape,
             data_type=data_type,
             chunk_grid=ChunkGrid(name="regular", configuration={
                 "chunk_shape": chunk_shape

@@ -36,14 +36,15 @@ class ZarrV3IO(MultiResIOBase):
                     self.array_ome_metadata.keys(),
                     ex.map(
                         self.accessor.fetch_file,
-                        [f"{p}/zarr.json" for p in self.array_ome_metadata.keys()]
+                        [f"{p}/zarr.json"
+                         for p in self.array_ome_metadata.keys()]
                     ),
                 )
             }
 
 
     def mirror_from(self, io: Any):
-        assert self.accessor.can_write, "Cannot mirror when accessor is not writable"
+        assert self.accessor.can_write, "Accessor needs to be writable"
 
         if isinstance(io, PrecomputedIO):
 
@@ -53,42 +54,42 @@ class ZarrV3IO(MultiResIOBase):
 
                 size = scale.get('size')
 
-                chunk_sizes = scale.get('chunk_sizes')
-                assert chunk_sizes, f"chunk_sizes not defined for scale: {key}"
-                assert len(chunk_sizes) == 1, f"assert len(chunk_sizes) == 1, but got {len(chunk_sizes)}"
-                chunk_size = chunk_sizes[0]
-                assert len(chunk_size) == 3, f"assert len(chunk_size) == 3, but got {len(chunk_size)}"
+                chszs = scale.get('chunk_sizes')
+                assert chszs, f"chunk_sizes not defined for scale: {key}"
+                assert len(chszs) == 1, f"assert {len(chszs)=} == 1"
+                chsz = chszs[0]
+                assert len(chsz) == 3, f"assert {len(chsz)=} == 3"
 
 
-                def mirror_chunk(idx):
-                    z_chunk_idx, y_chunk_idx, x_chunk_idx = idx
+                def mirror_chunk(idx: tuple[int, int, int]):
+                    z_i, y_i, x_i = idx
                     chunk = io.read_chunk(key, (
-                        x_chunk_idx * chunk_size[0], min((x_chunk_idx + 1) * chunk_size[0], size[0]),
-                        y_chunk_idx * chunk_size[1], min((y_chunk_idx + 1) * chunk_size[1], size[1]),
-                        z_chunk_idx * chunk_size[2], min((z_chunk_idx + 1) * chunk_size[2], size[2]),
+                        x_i * chsz[0], min((x_i + 1) * chsz[0], size[0]),
+                        y_i * chsz[1], min((y_i + 1) * chsz[1], size[1]),
+                        z_i * chsz[2], min((z_i + 1) * chsz[2], size[2]),
                     ))
                     chunk = np.transpose(chunk)
 
                     if len(chunk.shape) > 3:
                         chunk = chunk.reshape(chunk.shape[:3])
 
-                    chunk = np.pad(chunk, ( 
-                        (0, chunk_size[0] - chunk.shape[0]),
-                        (0, chunk_size[1] - chunk.shape[1]),
-                        (0, chunk_size[2] - chunk.shape[2]),
+                    chunk = np.pad(chunk, (
+                        (0, chsz[0] - chunk.shape[0]),
+                        (0, chsz[1] - chunk.shape[1]),
+                        (0, chsz[2] - chunk.shape[2]),
                     ), "edge")
 
                     self.write_chunk(chunk, key, (
-                        x_chunk_idx * chunk.shape[0], (x_chunk_idx + 1) * chunk.shape[0],
-                        y_chunk_idx * chunk.shape[1], (y_chunk_idx + 1) * chunk.shape[1],
-                        z_chunk_idx * chunk.shape[2], (z_chunk_idx + 1) * chunk.shape[2],
+                        x_i * chunk.shape[0], (x_i + 1) * chunk.shape[0],
+                        y_i * chunk.shape[1], (y_i + 1) * chunk.shape[1],
+                        z_i * chunk.shape[2], (z_i + 1) * chunk.shape[2],
                     ))
 
                 all_chunks = [
-                    (z_chunk_idx, y_chunk_idx, x_chunk_idx)
-                    for z_chunk_idx in range((size[2] - 1) // chunk_size[2] + 1)
-                    for y_chunk_idx in range((size[1] - 1) // chunk_size[1] + 1)
-                    for x_chunk_idx in range((size[0] - 1) // chunk_size[0] + 1)
+                    (z_i, y_i, x_i)
+                    for z_i in range((size[2] - 1) // chsz[2] + 1)
+                    for y_i in range((size[1] - 1) // chsz[1] + 1)
+                    for x_i in range((size[0] - 1) // chsz[0] + 1)
                 ]
 
                 with ThreadPoolExecutor() as ex:
@@ -103,7 +104,7 @@ class ZarrV3IO(MultiResIOBase):
                         )
                     )
             return
-        raise NotImplementedError(f"{io.__class__.__name__} cannot be mirrored")
+        raise NotImplementedError(f"{io.__class__.__name__} NYI")
 
 
     def write_chunk(self, chunk, scale_key, chunk_coords):
@@ -113,7 +114,8 @@ class ZarrV3IO(MultiResIOBase):
 
         try:
             for codec in array_metadata.codecs:
-                chunk = codec.encode(chunk, array_metadata, self, chunk_coords=chunk_coords, path=path)
+                chunk = codec.encode(chunk, array_metadata, self,
+                                     chunk_coords=chunk_coords, path=path)
 
             assert isinstance(chunk, bytes)
             self.accessor.store_file(path, chunk)

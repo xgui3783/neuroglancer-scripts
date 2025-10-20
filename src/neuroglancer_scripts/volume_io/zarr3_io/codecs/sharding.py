@@ -3,8 +3,8 @@ import pathlib
 import struct
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List
-from filelock import FileLock
 
+from filelock import FileLock
 from numpy import ndarray
 
 from neuroglancer_scripts.file_accessor import FileAccessor
@@ -77,7 +77,8 @@ class ShardingCodec(Codec[ndarray, bytes]):
             )
         ]
 
-    def get_chunk_coord_header_offset(self, chunk_coords, metadata: "Zarr3ArrayMetadata"):
+    def get_chunk_coord_header_offset(self, chunk_coords,
+                                      metadata: "Zarr3ArrayMetadata"):
         # TODO add support for header at end
         assert self.configuration.index_location == "start"
 
@@ -90,7 +91,7 @@ class ShardingCodec(Codec[ndarray, bytes]):
             for cc, cg in zip(
                 [xmin, ymin, zmin],
                 metadata.chunk_grid.configuration["chunk_shape"])]
-        
+
         relative_grid_idx = [ rcc / cs
                              for rcc, cs in zip(
                                  relative_chunk_coord,
@@ -109,22 +110,28 @@ class ShardingCodec(Codec[ndarray, bytes]):
 
         return cls(configuration=ShardingCodecCfg.parse(configuration))
 
-    def encode(self, input, metadata: "Zarr3ArrayMetadata", io, *args, path=None, chunk_coords=None, **kwargs):
+    def encode(self, input, metadata: "Zarr3ArrayMetadata", io, *args,
+               path=None, chunk_coords=None, **kwargs):
         if chunk_coords is None:
-            raise TypeError("chunk_coords is required by shardingcodec to encode chunk")
+            raise TypeError("chunk_coords is required")
         if path is None:
             raise TypeError("path is required by shardingcodc to encode chunk")
 
         xmin, xmax, ymin, ymax, zmin, zmax = chunk_coords
-        assert list(self.configuration.chunk_shape) == [xmax - xmin, ymax - ymin, zmax - zmin]
+
+        # on the edge, chunk_shape may be larger than max - min
+        assert self.configuration.chunk_shape[0] >= xmax - xmin > 0
+        assert self.configuration.chunk_shape[1] >= ymax - ymin > 0
+        assert self.configuration.chunk_shape[2] >= zmax - zmin > 0
 
         accessor = io.accessor
         assert isinstance(accessor, FileAccessor)
 
-        chunkcoord_hdroffset = self.get_chunk_coord_header_offset(chunk_coords, metadata)
+        chunkcoord_hdroffset = self.get_chunk_coord_header_offset(chunk_coords,
+                                                                  metadata)
 
         relative_path = pathlib.Path(path)
-        foo = [int(v / y) for v, y in zip([xmin, ymin, zmin], self.configuration.chunk_shape)]
+
         file_path = accessor.base_path / relative_path
         file_path.parent.mkdir(exist_ok=True, parents=True)
 
@@ -134,7 +141,8 @@ class ShardingCodec(Codec[ndarray, bytes]):
 
             output = input
             for codec in self.configuration.codecs:
-                output = codec.encode(output, metadata, io, path=path, chunk_coords=chunk_coords)
+                output = codec.encode(output, metadata, io, path=path,
+                                      chunk_coords=chunk_coords)
 
             with file_path.open("r+b") as f:
 
