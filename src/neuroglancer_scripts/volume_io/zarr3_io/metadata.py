@@ -318,7 +318,7 @@ def from_precomputed_info(info):
                 "chunk_shape": chunk_shape
             }),
             chunk_key_encoding=DefaultChunkKeyEncoding(configuration={
-                "separator": "/"
+                "separator": "."
             }),
             dimension_names=["x", "y", "z" ],
             fill_value=0,

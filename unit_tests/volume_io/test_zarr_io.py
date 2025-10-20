@@ -276,7 +276,7 @@ def test_get_encoder(
 #     "zarray_info, scale_key, chunk_coords, error, expected_return",
 #     [
 #         (
-#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64, 64]}},
+#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64,64]}},
 #             f"{SCALE_KEY}foo",
 #             (0, 64, 0, 64, 0, 64),
 #             KeyError,
@@ -297,35 +297,35 @@ def test_get_encoder(
 #             None,
 #         ),
 #         (
-#             {SCALE_KEY: {"dimension_separator": "_", "chunks": [64, 64, 64]}},
+#             {SCALE_KEY: {"dimension_separator": "_", "chunks": [64, 64,64]}},
 #             SCALE_KEY,
 #             (0, 64, 0, 64, 0, 64),
 #             None,
 #             f"{SCALE_KEY}/0_0_0",
 #         ),
 #         (
-#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64, 64]}},
+#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64,64]}},
 #             SCALE_KEY,
 #             (0, 64, 0, 64, 0, 64),
 #             None,
 #             f"{SCALE_KEY}/0/0/0",
 #         ),
 #         (
-#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64, 64]}},
+#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64,64]}},
 #             SCALE_KEY,
 #             (0, 64, 64, 128, 0, 64),
 #             None,
 #             f"{SCALE_KEY}/0/1/0",
 #         ),
 #         (
-#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64, 64]}},
+#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64,64]}},
 #             SCALE_KEY,
 #             (1, "HELLO WORLD", 64, 128, 150, None),
 #             None,
 #             f"{SCALE_KEY}/0/1/2",
 #         ),
 #         (
-#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64, 64]}},
+#             {SCALE_KEY: {"dimension_separator": "/", "chunks": [64, 64,64]}},
 #             SCALE_KEY,
 #             (-64, 0, 0, 64, 0, 64),
 #             AssertionError,
@@ -356,7 +356,7 @@ def test_zarrio_roundtrip(tmpdir):
     accessor.store_file(".zgroup", b'{"zarr_format": 2}')
     zattrs = {"multiscales": [{"datasets": [{"path": "foo0"}]}]}
     zzarray0 = {
-        "dimension_separator": "/",
+        "dimension_separator": ".",
         "chunks": [8, 8, 8],
         "compressor": {"id": "gzip"},
         "dtype": "uint16",
