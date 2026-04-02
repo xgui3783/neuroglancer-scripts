@@ -15,6 +15,7 @@ import struct
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Iterator, List, Union
 from uuid import uuid4
+import os
 
 import numpy as np
 
@@ -96,27 +97,39 @@ class OnDiskByteArray:
     __iter__. Since the bytearray can be arbitrary in size,
     the __iter__ method now returns an Iterator of bytes."""
 
-    _READ_SIZE = 4096
+    _READ_SIZE = 1024 * 1024 * 16
+    _BUFFER_SIZE = 1024 * 1024 * 16
 
-    def __init__(self) -> None:
-        _tmp_dir = pathlib.Path(TemporaryDirectory().name)
+    def __init__(self, _dir=None, buffersize=None, readsize=None) -> None:
+        _tmp_dir = pathlib.Path(TemporaryDirectory(dir=_dir).name)
         _tmp_dir.mkdir(parents=True, exist_ok=True)
         self._file = _tmp_dir / "sharded_ondisk_bytearray"
         self._len = 0
+        self._buffer = b""
+
+        self.buffersize = buffersize or self._BUFFER_SIZE
+        self.readsize = readsize or self._READ_SIZE
 
     def __len__(self):
         return self._len
 
     def __add__(self, o):
         self._len += len(o)
-        with open(self._file, "ab") as fp:
-            fp.write(o)
+        self._buffer += o
+        if len(self._buffer) >= self._BUFFER_SIZE:
+            self._flush_buffer()
         return self
+    
+    def _flush_buffer(self):
+        with open(self._file, "ab") as fp:
+            fp.write(self._buffer)
+        self._buffer = b""
 
     def __radd__(self, o):
         return self.__add__(o)
 
     def __iter__(self):
+        self._flush_buffer()
         with open(self._file, "rb") as fp:
             while True:
                 data = fp.read(self._READ_SIZE)
@@ -143,7 +156,7 @@ class MiniShard(CMCReadWrite):
                                                       else dict())
 
         self.databytearray: Union[OnDiskByteArray, InMemByteArray] = (
-            OnDiskByteArray()
+            OnDiskByteArray(_dir=os.getenv("NGS_TMPDIR"))
             if strategy == "on disk"
             else InMemByteArray()
         )
@@ -279,6 +292,11 @@ class Shard(ShardCMC):
         minishard_key = self.get_minishard_key(cmc)
         if minishard_key not in self.minishard_dict:
             self.minishard_dict[minishard_key] = MiniShard(self.shard_spec,
+                                                           strategy=(
+                                                               self.kwargs.get("strategy")
+                                                               or os.getenv("NGS_STRATEGY")
+                                                               or "on disk"
+                                                           ),
                                                            **self.kwargs)
         self.minishard_dict[minishard_key].store_cmc_chunk(buf, cmc)
 
@@ -482,3 +500,45 @@ class ShardedFileAccessor(neuroglancer_scripts.accessor.Accessor,
             return
         for scale in self.shard_dict.values():
             scale.close()
+
+
+    def iter_chunks(self):
+        """
+        Yields all combinations of key, [coord]
+        """
+        
+        for scale in self.info.get("scales", []):
+            key = scale.get('key')
+            assert key, f"key not defined"
+            
+            size = scale.get('size')
+            assert size, f"size not defined for scale: {key}"
+            print("size", size)
+            assert len(size) == 3
+            
+            chunk_sizes = scale.get('chunk_sizes')
+            assert chunk_sizes, f"chunk_sizes not defined for scale: {key}"
+            assert len(chunk_sizes) == 1, f"assert len(chunk_sizes) == 1, but got {len(chunk_sizes)}"
+            chunk_size = chunk_sizes[0]
+            assert len(chunk_size) == 3, f"assert len(chunk_size) == 3, but got {len(chunk_size)}"
+            for z_chunk_idx in range((size[2] - 1) // chunk_size[2] + 1):
+                for y_chunk_idx in range((size[1] - 1) // chunk_size[1] + 1):
+                    for x_chunk_idx in range((size[0] - 1) // chunk_size[0] + 1):
+                        yield key, (
+                            x_chunk_idx * chunk_size[0], min((x_chunk_idx + 1) * chunk_size[0], size[0]),
+                            y_chunk_idx * chunk_size[1], min((y_chunk_idx + 1) * chunk_size[1], size[1]),
+                            z_chunk_idx * chunk_size[2], min((z_chunk_idx + 1) * chunk_size[2], size[2]),
+                        )
+
+    def mirror_from(self, accessor: "neuroglancer_scripts.accessor.Accessor"):
+        assert accessor.can_read
+
+        all_chunks = [(k, c) for k, c in self.iter_chunks() if k == "10um"]
+        from tqdm import tqdm
+        progress = tqdm(total=len(all_chunks))
+        for k, c in all_chunks:            
+            data = accessor.fetch_chunk(k, c)
+            self.store_chunk(data, k, c)
+            progress.update()
+
+        
