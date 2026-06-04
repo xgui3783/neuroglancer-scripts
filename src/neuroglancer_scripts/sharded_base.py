@@ -8,7 +8,7 @@
 # Silversmith, and later authors (see below).
 
 import math
-import zlib
+import gzip
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
@@ -57,21 +57,21 @@ class ShardSpec:
         self._preshift_mask = None
 
     def data_encoder(self, b: bytes) -> bytes:
-        return zlib.compress(b) if self.data_encoding == "gzip" else b
+        return gzip.compress(b) if self.data_encoding == "gzip" else b
 
     def data_decoder(self, b: bytes) -> bytes:
-        return zlib.decompress(b) if self.data_encoding == "gzip" else b
+        return gzip.decompress(b) if self.data_encoding == "gzip" else b
 
     def index_encoder(self, b: bytes) -> bytes:
         return (
-            zlib.compress(b)
+            gzip.compress(b)
             if self.minishard_index_encoding == "gzip"
             else b
         )
 
     def index_decoder(self, b: bytes) -> bytes:
         return (
-            zlib.decompress(b)
+            gzip.decompress(b)
             if self.minishard_index_encoding == "gzip"
             else b
         )
